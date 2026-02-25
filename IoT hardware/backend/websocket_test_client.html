@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgroSphere AI - Real-Time Sensor Monitor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .connection-status {
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        
+        .connected {
+            background: #10b981;
+            color: white;
+        }
+        
+        .disconnected {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+        
+        .value {
+            font-size: 3em;
+            font-weight: bold;
+            color: #333;
+            margin: 10px 0;
+        }
+        
+        .unit {
+            font-size: 0.4em;
+            color: #666;
+        }
+        
+        .alert {
+            background: #fee2e2;
+            border-left: 4px solid #ef4444;
+            padding: 15px;
+            margin-top: 10px;
+            border-radius: 5px;
+            color: #991b1b;
+            font-weight: bold;
+        }
+        
+        .normal {
+            background: #d1fae5;
+            border-left: 4px solid #10b981;
+            padding: 15px;
+            margin-top: 10px;
+            border-radius: 5px;
+            color: #065f46;
+            font-weight: bold;
+        }
+        
+        .log {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .log h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        .log-entry {
+            padding: 8px;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        .timestamp {
+            color: #9ca3af;
+            font-size: 0.85em;
+        }
+        
+        .config {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+        
+        .config input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e5e7eb;
+            border-radius: 5px;
+            font-size: 1em;
+            margin-bottom: 10px;
+        }
+        
+        .config button {
+            width: 100%;
+            padding: 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .config button:hover {
+            background: #5568d3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌾 AgroSphere AI</h1>
+            <p>Real-Time IoT Sensor Monitor</p>
+            <div id="status" class="connection-status disconnected">⚫ Disconnected</div>
+        </div>
+        
+        <div class="config">
+            <h2>WebSocket Configuration</h2>
+            <input type="text" id="wsUrl" placeholder="ws://192.168.1.18:8765" value="ws://192.168.1.18:8765">
+            <button onclick="connect()">Connect</button>
+        </div>
+        
+        <div class="dashboard">
+            <div class="card">
+                <h2>🌡️ Temperature</h2>
+                <div class="value" id="temp">--<span class="unit">°C</span></div>
+                <div id="tempStatus"></div>
+            </div>
+            
+            <div class="card">
+                <h2>💧 Humidity</h2>
+                <div class="value" id="humidity">--<span class="unit">%</span></div>
+            </div>
+            
+            <div class="card">
+                <h2>🌱 Soil Moisture</h2>
+                <div class="value" id="moisture">--<span class="unit">%</span></div>
+                <div id="moistureStatus"></div>
+            </div>
+            
+            <div class="card">
+                <h2>📊 Confidence Score</h2>
+                <div class="value" id="confidence">--<span class="unit">%</span></div>
+            </div>
+        </div>
+        
+        <div class="log">
+            <h2>📡 Live Data Stream</h2>
+            <div id="log"></div>
+        </div>
+    </div>
+    
+    <script>
+        let ws = null;
+        
+        function connect() {
+            const url = document.getElementById('wsUrl').value;
+            
+            if (ws) {
+                ws.close();
+            }
+            
+            ws = new WebSocket(url);
+            
+            ws.onopen = () => {
+                document.getElementById('status').textContent = '🟢 Connected';
+                document.getElementById('status').className = 'connection-status connected';
+                addLog('Connected to sensor node');
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'sensor_data') {
+                    updateDashboard(data);
+                    addLog(`Received: Temp ${data.sensor_data.temperature_celsius}°C, Moisture ${data.sensor_data.soil_moisture_percent}%`);
+                }
+            };
+            
+            ws.onerror = (error) => {
+                addLog('Connection error');
+            };
+            
+            ws.onclose = () => {
+                document.getElementById('status').textContent = '⚫ Disconnected';
+                document.getElementById('status').className = 'connection-status disconnected';
+                addLog('Disconnected from sensor node');
+            };
+        }
+        
+        function updateDashboard(data) {
+            const { sensor_data, confidence_score, market_warning, alerts } = data;
+            
+            document.getElementById('temp').innerHTML = 
+                `${sensor_data.temperature_celsius}<span class="unit">°C</span>`;
+            document.getElementById('humidity').innerHTML = 
+                `${sensor_data.humidity_percent}<span class="unit">%</span>`;
+            document.getElementById('moisture').innerHTML = 
+                `${sensor_data.soil_moisture_percent}<span class="unit">%</span>`;
+            document.getElementById('confidence').innerHTML = 
+                `${(confidence_score * 100).toFixed(0)}<span class="unit">%</span>`;
+            
+            // Temperature status
+            if (sensor_data.temperature_celsius > 35) {
+                document.getElementById('tempStatus').innerHTML = 
+                    '<div class="alert">⚠️ Heat Stress Detected</div>';
+            } else {
+                document.getElementById('tempStatus').innerHTML = 
+                    '<div class="normal">✅ Normal</div>';
+            }
+            
+            // Moisture status
+            if (sensor_data.soil_moisture_percent < 20) {
+                document.getElementById('moistureStatus').innerHTML = 
+                    '<div class="alert">⚠️ Drought Stress Detected</div>';
+            } else {
+                document.getElementById('moistureStatus').innerHTML = 
+                    '<div class="normal">✅ Normal</div>';
+            }
+        }
+        
+        function addLog(message) {
+            const log = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            const now = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span class="timestamp">[${now}]</span> ${message}`;
+            log.insertBefore(entry, log.firstChild);
+            
+            // Keep only last 50 entries
+            while (log.children.length > 50) {
+                log.removeChild(log.lastChild);
+            }
+        }
+        
+        // Auto-connect on page load
+        window.onload = () => {
+            // Uncomment to auto-connect
+            // connect();
+        };
+    </script>
+</body>
+</html>

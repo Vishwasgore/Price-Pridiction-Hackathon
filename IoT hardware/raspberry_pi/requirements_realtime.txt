@@ -1,0 +1,12 @@
+# AgroSphere AI - Real-Time Streaming Dependencies
+
+# Core sensor libraries
+adafruit-circuitpython-dht==4.0.3
+adafruit-blinka==8.40.0
+RPi.GPIO==0.7.1
+
+# WebSocket server
+websockets==12.0
+
+# HTTP client (for backend integration)
+aiohttp==3.9.1

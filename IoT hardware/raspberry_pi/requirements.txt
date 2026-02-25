@@ -1,0 +1,12 @@
+# AgroSphere AI - Ground Truth Calibration Node
+# Python Dependencies for Raspberry Pi Sensor System
+
+# DHT11 Temperature/Humidity Sensor
+adafruit-circuitpython-dht==4.0.3
+adafruit-blinka==8.40.0
+
+# GPIO Control
+RPi.GPIO==0.7.1
+
+# System Libraries (usually pre-installed on Raspberry Pi OS)
+# If missing, install via: sudo apt-get install python3-dev python3-pip
